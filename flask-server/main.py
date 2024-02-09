@@ -15,7 +15,7 @@ def train_knn_model(db: Session):
     
     # Prepare features (latitude, longitude) and labels (placename)
     X = [[place.latitude, place.longitude] for place in places]
-    y = [place.placename for place in places]
+    y = [place.discription for place in places]
 
     # Feature Scaling
     scaler = StandardScaler()
@@ -33,7 +33,7 @@ def train_knn_model(db: Session):
 app = FastAPI()
 
 # Train the KNN model during application startup
-# knn_model, scaler = train_knn_model(SessionLocal())
+knn_model, scaler = train_knn_model(SessionLocal())
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -46,8 +46,10 @@ class PlaceBase(BaseModel):
     longitude: condecimal(ge=-180, le=180, decimal_places=6)
     
 class PlaceResponse(BaseModel):
-    placename: str
-    category:str
+    price:str
+    qty:str
+    contact:str
+    discription:str
     latitude: float
     longitude: float
     
@@ -66,7 +68,7 @@ async def predict_place(current_location: PlaceBase, db: db_dependency):
     current_location_scaled = scaler.transform([[current_location.latitude, current_location.longitude]])
     predicted_place = knn_model.predict(current_location_scaled)
     print(predicted_place)
-    place_details = db.query(models.Place).filter_by(placename=predicted_place[0]).first()
+    place_details = db.query(models.Place).filter_by(discription=predicted_place[0]).first()
     
     if place_details:
         return PlaceResponse(**place_details.__dict__)
@@ -84,6 +86,7 @@ def save_place_to_database(db: Session, place_info: dict):
 @app.post("/place/", status_code=status.HTTP_201_CREATED)
 async def create_place(place:PlaceBase, db: db_dependency):
     db_place = models.Place(**place.dict())
+    print(db_place)
     db.add(db_place)
     db.commit()
     return {db_place.latitude,"Successfully Save..!"}
@@ -97,4 +100,7 @@ def read_root():
 def read_root():
     print("Manuka")
     return {"Hello": "Manuka"}
+
+
+
 
