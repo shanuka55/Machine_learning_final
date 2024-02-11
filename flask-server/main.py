@@ -63,18 +63,35 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 
 #Endpoint to predict the nearest place
-@app.post("/predict_place/")
-async def predict_place(current_location: PlaceBase, db: db_dependency):
-    current_location_scaled = scaler.transform([[current_location.latitude, current_location.longitude]])
-    predicted_place = knn_model.predict(current_location_scaled)
-    print(predicted_place)
-    place_details = db.query(models.Place).filter_by(discription=predicted_place[0]).first()
+# @app.post("/predict_place/")
+# async def predict_place(current_location: PlaceBase, db: db_dependency):
+#     current_location_scaled = scaler.transform([[current_location.latitude, current_location.longitude]])
+#     predicted_place = knn_model.predict(current_location_scaled)
+#     print(predicted_place)
+#     place_details = db.query(models.Place).filter_by(discription=predicted_place[0]).first()
     
-    if place_details:
-        return PlaceResponse(**place_details.__dict__)
-    else:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place details not found.")
+#     if place_details:
+#         return PlaceResponse(**place_details.__dict__)
+#     else:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place details not found.")
     
+@app.post("/predict_place")
+async def predict_place(current_locations: List[PlaceBase], db: db_dependency):
+    # Prepare current location data
+    current_locations_scaled = scaler.transform([[loc.latitude, loc.longitude] for loc in current_locations])
+    
+    # Predict places for all current locations
+    predicted_places = knn_model.predict(current_locations_scaled)
+    
+    # Retrieve place details for each predicted place
+    place_details_list = []
+    for predicted_place in predicted_places:
+        place_details = db.query(models.Place).filter_by(discription=predicted_place).first()
+        if place_details:
+            place_details_list.append(PlaceResponse(**place_details.__dict__))
+    
+    return place_details_list
+
 
 def save_place_to_database(db: Session, place_info: dict):
     db_place = models.Place(**place_info)
